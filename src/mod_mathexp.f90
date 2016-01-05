@@ -46,11 +46,11 @@ module mod_mathexp
 
     recursive function evaluate(self, succeeded, vnames, vvalues) result(ret)
       implicit none
-      class(MathExp), intent(inout)      :: self
-      logical, intent(out)               :: succeeded
-      character(5), intent(in), optional :: vnames(:)
-      real(8), intent(in), optional      :: vvalues(:)
-      real(8)                            :: ret
+      class(MathExp), intent(inout)       :: self
+      logical, intent(out)                :: succeeded
+      character(10), intent(in), optional :: vnames(:)
+      real(8), intent(in), optional       :: vvalues(:)
+      real(8)                             :: ret
       integer iostat, i
       logical ls, rs
 
@@ -98,16 +98,21 @@ module mod_mathexp
           self % is_static = .true.
           self % value = ret
         endif
+
+      elseif (associated(self % left)) then
+        if (self % exp == "ln") then
+          ret = log(self % left % evaluate(ls))
+        endif
+        if (ls) succeeded = .true.
+        if (ls .and. self % left % is_static) then
+          self % is_static = .true.
+          self % value = ret
+        endif
+
       else
-        if (checklog(self % exp, ret)) then
+        read(self % exp, *, iostat=iostat) ret
+        if (iostat == 0) then
           succeeded = .true.
-        elseif (checklog10(self % exp, ret)) then
-          succeeded = .true.
-        else
-          read(self % exp, *, iostat=iostat) ret
-          if (iostat == 0) then
-            succeeded = .true.
-          endif
         endif
 
         if (succeeded) then
@@ -120,50 +125,6 @@ module mod_mathexp
 
       if (present(vnames)) deallocate(names, values)
     end function evaluate
-
-
-    function checklog(string, ret) result(is_log)
-      implicit none
-      character(*), intent(in) :: string
-      real(8), intent(out)     :: ret
-      logical                  :: is_log
-      integer l, iostat
-
-      l = len(string)
-      ret = 0
-      is_log = .false.
-      if (l < 5) return
-
-      if (string(1:3) == "ln(" .and. string(l:l) == ")") then
-        read(string(4:l-1), *, iostat=iostat) ret
-        if (iostat == 0) then
-          ret = log(ret)
-          is_log = .true.
-        endif
-      endif
-    end function checklog
-
-
-    function checklog10(string, ret) result(is_log)
-      implicit none
-      character(*), intent(in) :: string
-      real(8), intent(out)     :: ret
-      logical                  :: is_log
-      integer l, iostat
-
-      l = len(string)
-      ret = 0
-      is_log = .false.
-      if (l < 6) return
-
-      if (string(1:4) == "log(" .and. string(l:l) == ")") then
-        read(string(5:l-1), *, iostat=iostat) ret
-        if (iostat == 0) then
-          ret = log10(ret)
-          is_log = .true.
-        endif
-      endif
-    end function checklog10
 
 
     function newMathExp(string) result(m)
@@ -184,6 +145,19 @@ module mod_mathexp
       parent % is_static = .false.
       l = len(parent % exp)
       if (l == 0) return
+
+      start = l
+      last = l
+
+      if ( l > 5) then
+        if (parent % exp(1:3) == "ln(" .and. parent % exp(l:l) == ")") then
+          allocate(parent % left)
+          parent % left % exp = parent % exp(4:l-1)
+          parent % exp = "ln"
+          call parse(parent % left)
+          return
+        endif
+      endif
 
       call operator_pos(parent % exp, start, last)
 
@@ -211,8 +185,7 @@ module mod_mathexp
       character(*), intent(inout) :: string
       integer, intent(out)     :: start
       integer, intent(out)     :: last
-      integer i, l, nest, high, priority, lowest_priority, iostat
-      real(8) testreal
+      integer i, l, nest, high, priority, lowest_priority
 
       high = 2
       nest = 0
@@ -234,10 +207,7 @@ module mod_mathexp
         elseif (string(i:i) == ")") then
           nest = nest - 1
         elseif (string(i:i) == "+" .or. string(i:i) == "-") then
-          if (2 < i .and. i <= l-1) then
-            read(string(i-2:i+1), *, iostat=iostat) testreal
-            if (iostat == 0) cycle
-          endif
+          if (exponential_exp(string, i)) cycle
           priority = low
         elseif (string(i:i) == "*" .or. string(i:i) == "/") then
           priority = middle
@@ -255,6 +225,27 @@ module mod_mathexp
       enddo
     end subroutine operator_pos
 
+
+    function exponential_exp(string, i) result(ret)
+      character(*), intent(in) :: string
+      integer, intent(in)      :: i
+      logical ret
+      integer l, iostat
+      real(8) testreal
+
+      l = len(string)
+      ret = .false.
+      if (i <= 2 .or. l == i) return
+
+      if (string(i-1:i-1) /= "E" .and. &
+        & string(i-1:i-1) /= "e" .and. &
+        & string(i-1:i-1) /= "D" .and. &
+        & string(i-1:i-1) /= "d") return
+
+      read(string(i-2:i+1), *, iostat=iostat) testreal
+      if (iostat == 0) ret = .true.
+
+    end function exponential_exp
 
     recursive function remove_outer_brackets(string) result(removed)
       implicit none
