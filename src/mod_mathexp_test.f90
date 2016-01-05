@@ -122,20 +122,6 @@ program eval_test
   if (.not. succeeded) ret = ret + 1
   call m%clear()
 
-  m = newMathExp("1+1E-3*100")
-  if (m%evaluate(succeeded) /= 1.1D0) ret = ret + 1
-  if (.not. succeeded) ret = ret + 1
-  if (m%evaluate(succeeded) /= 1.1D0) ret = ret + 1
-  if (.not. succeeded) ret = ret + 1
-  call m%clear()
-
-  m = newMathExp("1+1D-3*100")
-  if (m%evaluate(succeeded) /= 1.1D0) ret = ret + 1
-  if (.not. succeeded) ret = ret + 1
-  if (m%evaluate(succeeded) /= 1.1D0) ret = ret + 1
-  if (.not. succeeded) ret = ret + 1
-  call m%clear()
-
   m = newMathExp("2^2*3")
   if (m%evaluate(succeeded) /= 12D0) ret = ret + 1
   if (.not. succeeded) ret = ret + 1

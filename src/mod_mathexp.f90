@@ -207,7 +207,6 @@ module mod_mathexp
         elseif (string(i:i) == ")") then
           nest = nest - 1
         elseif (string(i:i) == "+" .or. string(i:i) == "-") then
-          if (exponential_exp(string, i)) cycle
           priority = low
         elseif (string(i:i) == "*" .or. string(i:i) == "/") then
           priority = middle
@@ -225,27 +224,6 @@ module mod_mathexp
       enddo
     end subroutine operator_pos
 
-
-    function exponential_exp(string, i) result(ret)
-      character(*), intent(in) :: string
-      integer, intent(in)      :: i
-      logical ret
-      integer l, iostat
-      real(8) testreal
-
-      l = len(string)
-      ret = .false.
-      if (i <= 2 .or. l == i) return
-
-      if (string(i-1:i-1) /= "E" .and. &
-        & string(i-1:i-1) /= "e" .and. &
-        & string(i-1:i-1) /= "D" .and. &
-        & string(i-1:i-1) /= "d") return
-
-      read(string(i-2:i+1), *, iostat=iostat) testreal
-      if (iostat == 0) ret = .true.
-
-    end function exponential_exp
 
     recursive function remove_outer_brackets(string) result(removed)
       implicit none
